@@ -1,5 +1,6 @@
 import torch
 import pandas as pd
+import pickle
 import re
 import torch.nn as nn
 import torch.optim as optim
@@ -63,8 +64,6 @@ input_size = 3072 #4 x 1 x 768
 hidden_size = 128
 num_epochs = 2
 
-learning_rate = .002
-
 class NN(nn.Module):
     def __init__(self, input_size, hidden_size):
         super(NN, self).__init__()
@@ -73,41 +72,34 @@ class NN(nn.Module):
         self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.fc3 = nn.Linear(hidden_size, hidden_size)
         self.predict = nn.Linear(hidden_size, 1)
-
-        self.dropout = nn.Dropout(0.2)
         
     def forward(self, x):
-        out = self.fc(x)        
-        out = self.dropout(out)
+        out = self.fc(x)
         out = self.relu(out)
         
-        out = self.fc2(out)        
-        out = self.dropout(out)
+        out = self.fc2(out)
         out = self.relu(out)
         
-        out = self.fc3(out)        
-        out = self.dropout(out)
+        out = self.fc3(out)
         out = self.relu(out)
         
         out = self.predict(out)
         
         return out
     
-#model = NN(input_size, hidden_size).to(torch.float64).to(device)
+model = NN(input_size, hidden_size).to(torch.float64).to(device)
+model.load_state_dict(torch.load('files/model_state2.pth'))
+model.eval()
 
-# Loss and optimizer
 criterion = nn.MSELoss()
-# optimizer = optim.Adam(model.parameters(), lr=learning_rate) 
 
-# training loop
+total_loss = []
 
+# with torch.no_grad():
+#     bot = 2448
+#     top = 2458
 
-# for epoch in range(num_epochs):
-#     bot = 0
-#     top = 8
-
-#     while top <= 2448: # around %70 of data for training
-
+#     while top <= 2798:
 #         data = StoryDataset(bot,top)
 #         print(data.batch.index)
 
@@ -121,28 +113,27 @@ criterion = nn.MSELoss()
 #                     predicted.append(model(word_tensor))
                     
 #             predicted = torch.mean(torch.stack(predicted)).to(device).unsqueeze(0)
-            
+#             #print(predicted[0])
+#             print(actual)
 #             loss = criterion(predicted, actual)
+#             total_loss.append(loss)
 #             print('loss: %.5f' % loss)
 
-#             optimizer.zero_grad()
-#             loss.backward()
-#             optimizer.step()
             
-#         bot += 8
-#         top += 8
+            
+#         bot += 10
+#         top += 10
 
-model = NN(input_size, hidden_size).to(torch.float64).to(device)
-model.load_state_dict(torch.load('files/model_state.pth'))
-model.train()
+# print(sum(total_loss))
 
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+pred_list = []
+actual_list = []
 
-for epoch in range(num_epochs):
-    bot = 2448
-    top = 2458
+with torch.no_grad():
+    bot = 2798
+    top = 2801
 
-    while top <= 2798:
+    while top <= 3497:
         data = StoryDataset(bot,top)
         print(data.batch.index)
 
@@ -156,20 +147,20 @@ for epoch in range(num_epochs):
                     predicted.append(model(word_tensor))
                     
             predicted = torch.mean(torch.stack(predicted)).to(device).unsqueeze(0)
-            
+
+            pred_list.append(predicted.to('cpu').numpy()[0])
+            actual_list.append(actual.to('cpu').numpy()[0])
+
             loss = criterion(predicted, actual)
+            total_loss.append(loss)
             print('loss: %.5f' % loss)
-            
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            
-            
-        bot += 10
-        top += 10
 
-    bot = 2448
-    top = 2458 
+            
+            
+        bot += 3
+        top += 3
 
-#torch.save(model.state_dict(), 'files/model_state.pth')
-torch.save(model.state_dict(), 'files/model_state2.pth')
+print(sum(total_loss))
+
+pickle.dump(pred_list, open('files/predictions.pkl', 'wb'))
+pickle.dump(actual_list, open('files/actuals.pkl', 'wb'))
