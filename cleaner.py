@@ -1,3 +1,7 @@
+# -------------------------------
+# This script parses, cleans, and organizes the story data
+# -------------------------------
+
 import re
 import pandas as pd
 import string
@@ -9,6 +13,7 @@ from nltk import word_tokenize, pos_tag
 from nltk.corpus import wordnet as wn
 from collections import defaultdict
 
+# prepare lists for data frames later
 titles = []
 dates = []
 subgenres = []
@@ -17,32 +22,47 @@ times = []
 authors = []
 stories = []
 
+# initialize to empty string 
 story_text = ''
 
+# read through the story file line-by-line
 with open('files/stories.txt', 'r') as f:
     lines = f.readlines()
     
     for i, line in enumerate(lines):
-
+        
+        # extract title if not blank
         if re.match('Title: ', line):
             if story_text is not '':
                 stories.append(story_text)
             story_text = ''
             titles.append(re.split('Title: ', line)[1][:-1])
+            
+        # extract date
         elif re.match('Date: ', line):
+            # check if next line is subgenre to avoid parsing the wrong line
             if re.match('Subgenre: ', lines[i+1]):
                 dates.append(re.split('Date: ', line)[1][:-1])
+                
+        # extract subgenre
         elif re.match('Subgenre: ', line):
             subgenres.append(re.split('Subgenre: ', line)[1][:-1])
+            
+        # extract rating
         elif re.match('Rating: ', line):
             ratings.append(re.split('Rating: ', line)[1][:-1])
+            
+        # extract time
         elif re.match('Reading Time: ', line):
             times.append(re.split('Reading Time: ', line)[1][:-1])
             
+            # extract author, if present; else blank
             if re.match('Author: ', lines[i+1]):
                 authors.append(re.split('Author: ', lines[i+1])[1][:-1]) 
             else:
-                authors.append('')            
+                authors.append('')        
+                
+        # catch case by skipping if author line is problematic
         else: 
             if re.match('Author: ', line):
                 continue
@@ -59,7 +79,11 @@ creep = pd.DataFrame({'title': titles,
                       'author': authors,
                       'story': stories})
 
+
 def clean_title(title):
+    '''
+    Clean title text by eliminating odd characters
+    '''
     title = title.lower()
     title = re.sub('[“‘’”…\*]', '', title)
     title = re.sub('[-–]', ' ', title)
@@ -69,6 +93,10 @@ def clean_title(title):
     return title
 
 def clean_author(name):
+    '''
+    Parse author. Remove odd characters and set to unknown 
+    if author is not known.
+    '''
     if re.search('\(', name):
         name = re.split('\(', name)[0].strip()
     if re.search('a.k.a', name):
@@ -81,6 +109,9 @@ def clean_author(name):
     return name
 
 def clean_subgenre(subgenre):
+    '''
+    Clean subgenre string. 
+    '''
     subgenre = subgenre.lower()
     subgenre = re.sub('and|the', '', subgenre).strip()
     subgenre = re.sub(',', '', subgenre).strip()
@@ -88,7 +119,9 @@ def clean_subgenre(subgenre):
     return subgenre
 
 def clean_stories(story):
-    
+    '''
+    Remove characters and symbols from story text.
+    '''
     if re.search("Author’s note:", story):
         temp = re.split("Author’s note:", story)[0]
         if len(temp) > 10:
@@ -109,6 +142,10 @@ def clean_stories(story):
     return story
 
 def clean_stories_for_BERT(story):
+    '''
+    Same function as above, except terminating punctuation is 
+    preserved for the BERT parser. 
+    '''
     
     if re.search("Author’s note:", story):
         temp = re.split("Author’s note:", story)[0]
@@ -148,6 +185,10 @@ creep_BERT.drop(index = (creep_BERT[creep_BERT.story == '']).index, inplace=True
 creep_BERT.reset_index(drop=True, inplace=True)
 
 def lemmatize_story(story):
+    '''
+    Lemmatize story text to remove noise words and simplify text
+    for NLP tasks.
+    '''
     lem = WordNetLemmatizer()
     pos_map = defaultdict(lambda : wn.NOUN)
     pos_map['J'] =  wn.ADJ
@@ -165,6 +206,7 @@ creep_BERT['story'] = creep_BERT['story'].apply(lemmatize_story)
 corpus = pd.DataFrame(data=creep, columns =['title','story'])
 creep.drop('story', axis=1, inplace=True)
 
+# pickle for later
 corpus.to_pickle('files/corpus.pkl')
 creep.to_pickle('files/creep.pkl')
 creep_BERT.to_pickle('files/BERT_corpus.pkl')

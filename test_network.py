@@ -1,3 +1,7 @@
+# -----------------------------------
+# Test the NN on validation and test sets.
+# -----------------------------------
+
 import torch
 import pandas as pd
 import pickle
@@ -95,6 +99,10 @@ criterion = nn.MSELoss()
 
 total_loss = []
 
+# --------------------------------
+# Validation set
+# --------------------------------
+
 # with torch.no_grad():
 #     bot = 2448
 #     top = 2458
@@ -129,6 +137,10 @@ total_loss = []
 pred_list = []
 actual_list = []
 
+# -----------------------------
+# Test set
+# -----------------------------
+
 with torch.no_grad():
     bot = 2798
     top = 2801
@@ -162,5 +174,6 @@ with torch.no_grad():
 
 print(sum(total_loss))
 
+# save predictions for analysis
 pickle.dump(pred_list, open('files/predictions.pkl', 'wb'))
 pickle.dump(actual_list, open('files/actuals.pkl', 'wb'))
